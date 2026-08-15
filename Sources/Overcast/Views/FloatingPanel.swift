@@ -20,7 +20,7 @@ final class FloatingPanel: NSPanel {
         backgroundColor = .clear
         // AppKit's native window shadow traces the clear window's alpha silhouette,
         // which renders as a coarse hexagonal artifact around small rounded content.
-        // The SwiftUI-level .shadow() in ClimeoutView draws the real shadow instead.
+        // The SwiftUI-level .shadow() in OvercastView draws the real shadow instead.
         hasShadow = false
 
         isMovableByWindowBackground = true

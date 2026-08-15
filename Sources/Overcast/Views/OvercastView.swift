@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct ClimeoutView: View {
+struct OvercastView: View {
     @EnvironmentObject var weatherService: WeatherService
     @EnvironmentObject var moodManager: MoodManager
     @State private var now: Date = Date()

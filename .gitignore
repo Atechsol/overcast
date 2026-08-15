@@ -1,6 +1,6 @@
 .build/
 .swiftpm/
-Climeout.app/
+Overcast.app/
 *.xcodeproj
 DerivedData/
 .DS_Store

@@ -1,10 +1,10 @@
 import Foundation
 
-/// Watches a simple trigger file (~/.config/climeout/event.json) for changes.
+/// Watches a simple trigger file (~/.config/overcast/event.json) for changes.
 /// Any script — a git hook, CI job, or manual `echo` — can write an event here
 /// to make the companion react, e.g.:
 ///
-///   echo '{"event":"bugFound"}' > ~/.config/climeout/event.json
+///   echo '{"event":"bugFound"}' > ~/.config/overcast/event.json
 ///
 /// This keeps the integration surface dead simple and language-agnostic —
 /// no daemon, no socket, no auth to worry about.
@@ -15,7 +15,7 @@ final class EventListener {
 
     init(onEvent: @escaping (MoodEvent) -> Void) {
         let home = FileManager.default.homeDirectoryForCurrentUser
-        self.fileURL = home.appendingPathComponent(".config/climeout/event.json")
+        self.fileURL = home.appendingPathComponent(".config/overcast/event.json")
         self.onEvent = onEvent
         ensureFileExists()
         watch()

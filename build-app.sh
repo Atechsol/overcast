@@ -1,13 +1,13 @@
 #!/bin/bash
 # Builds the SPM executable in release mode and assembles it into a
-# double-clickable Climeout.app bundle.
+# double-clickable Overcast.app bundle.
 set -euo pipefail
 
-APP_NAME="Climeout"
+APP_NAME="Overcast"
 BUILD_DIR=".build/release"
 APP_DIR="${APP_NAME}.app"
 
-echo "Quitting any running Climeout instances..."
+echo "Quitting any running Overcast instances..."
 pkill -f "${APP_NAME}.app/Contents/MacOS/${APP_NAME}" || true
 
 echo "Building release binary..."

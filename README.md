@@ -1,8 +1,13 @@
-# Climeout
+# Overcast
 
-A tiny, free, open-source floating macOS widget for developers who lose track of
-time and daylight while heads-down in code. Shows the current time, real-time
-weather as a plain-English descriptor ("Mild Sun", "Overcast", "Rainy"), and a
+Blinds closed, three monitors on, and some days you genuinely don't know if
+it's sunny or the apocalypse outside — because you haven't looked up in six
+hours. Overcast is the compromise between "toxic productivity" and "touching
+grass." A glance at the tray, no need to actually go outside.
+
+A tiny, free, open-source floating macOS widget for devs who see daylight
+mostly as a rumor. Shows the current time, real-time weather as a
+plain-English descriptor ("Mild Sun", "Overcast", "Rainy"), and a
 configurable mood/personality that reacts to events like a failed build or a
 found bug.
 
@@ -31,12 +36,12 @@ Or open `Package.swift` directly in Xcode (File → Open).
 ```bash
 chmod +x build-app.sh
 ./build-app.sh
-open Climeout.app
+open Overcast.app
 ```
 
 ## Configuration
 
-Create `~/.config/climeout/config.json` (copy from `config.example.json`):
+Create `~/.config/overcast/config.json` (copy from `config.example.json`):
 
 ```json
 {
@@ -54,11 +59,11 @@ Any script — a git hook, CI job, or terminal command — can change the
 companion's mood by writing to a trigger file:
 
 ```bash
-echo '{"event":"bugFound"}'    > ~/.config/climeout/event.json
-echo '{"event":"buildPassed"}' > ~/.config/climeout/event.json
-echo '{"event":"cheerUp"}'     > ~/.config/climeout/event.json
-echo '{"event":"focusMode"}'   > ~/.config/climeout/event.json
-echo '{"event":"reset"}'       > ~/.config/climeout/event.json
+echo '{"event":"bugFound"}'    > ~/.config/overcast/event.json
+echo '{"event":"buildPassed"}' > ~/.config/overcast/event.json
+echo '{"event":"cheerUp"}'     > ~/.config/overcast/event.json
+echo '{"event":"focusMode"}'   > ~/.config/overcast/event.json
+echo '{"event":"reset"}'       > ~/.config/overcast/event.json
 ```
 
 Example git hook (`.git/hooks/pre-commit`) that reacts to a failing test suite:
@@ -66,7 +71,7 @@ Example git hook (`.git/hooks/pre-commit`) that reacts to a failing test suite:
 ```bash
 #!/bin/bash
 if ! swift test; then
-  echo '{"event":"bugFound"}' > ~/.config/climeout/event.json
+  echo '{"event":"bugFound"}' > ~/.config/overcast/event.json
   exit 1
 fi
 ```
@@ -74,8 +79,8 @@ fi
 ## Installing via Homebrew (once released)
 
 ```bash
-brew tap yourname/climeout
-brew install --cask climeout
+brew tap yourname/overcast
+brew install --cask overcast
 ```
 
 Builds are unsigned and un-notarized (keeps this project fully free to

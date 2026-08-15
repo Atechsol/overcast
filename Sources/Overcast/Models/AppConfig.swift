@@ -1,6 +1,6 @@
 import Foundation
 
-/// User-editable configuration, loaded from ~/.config/climeout/config.json
+/// User-editable configuration, loaded from ~/.config/overcast/config.json
 /// Falls back to sensible defaults (San Francisco coords) if missing.
 struct AppConfig: Decodable {
     let fallbackLatitude: Double?
@@ -9,7 +9,7 @@ struct AppConfig: Decodable {
 
     static func configURL() -> URL {
         let home = FileManager.default.homeDirectoryForCurrentUser
-        return home.appendingPathComponent(".config/climeout/config.json")
+        return home.appendingPathComponent(".config/overcast/config.json")
     }
 
     static func load() -> AppConfig? {

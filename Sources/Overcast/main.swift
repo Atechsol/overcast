@@ -17,7 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Hide from Dock + Cmd-Tab: this is a background utility, not a regular app.
         NSApp.setActivationPolicy(.accessory)
 
-        let contentView = ClimeoutView()
+        let contentView = OvercastView()
             .environmentObject(weatherService)
             .environmentObject(moodManager)
 

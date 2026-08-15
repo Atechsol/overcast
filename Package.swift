@@ -2,14 +2,14 @@
 import PackageDescription
 
 let package = Package(
-    name: "Climeout",
+    name: "Overcast",
     platforms: [
         .macOS(.v13)
     ],
     targets: [
         .executableTarget(
-            name: "Climeout",
-            path: "Sources/Climeout"
+            name: "Overcast",
+            path: "Sources/Overcast"
         )
     ]
 )
