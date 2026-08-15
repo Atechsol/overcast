@@ -1,0 +1,39 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+
+      - name: Build Overcast.app
+        run: |
+          chmod +x build-app.sh
+          ./build-app.sh
+
+      - name: Zip app bundle
+        run: ditto -c -k --sequesterRsrc --keepParent Overcast.app Overcast.app.zip
+
+      - name: Compute sha256
+        id: sha
+        run: echo "sha256=$(shasum -a 256 Overcast.app.zip | cut -d ' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Overcast.app.zip
+          generate_release_notes: true
+          body: |
+            **sha256**: `${{ steps.sha.outputs.sha256 }}`
+
+            Update `Casks/overcast.rb` in the homebrew-overcast tap with this hash.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
