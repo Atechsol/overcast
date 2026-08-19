@@ -35,7 +35,7 @@ struct OvercastView: View {
                 .italic()
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
-                .frame(maxWidth: 180)
+                .frame(width: 180)
 
             if weatherService.needsLocationPermission {
                 Button(action: weatherService.openLocationSettings) {
