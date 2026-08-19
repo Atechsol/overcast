@@ -15,6 +15,7 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
     // Configurable via AppConfig (see Config/config.json).
     private var fallbackLatitude: Double = 37.7749
     private var fallbackLongitude: Double = -122.4194
+    private var refreshIntervalMinutes: Double = 15
 
     override init() {
         super.init()
@@ -26,9 +27,8 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
         locationManager.requestWhenInUseAuthorization()
         locationManager.requestLocation()
 
-        // Refresh every 15 minutes — weather doesn't need to be more real-time than that,
-        // and this keeps network use (and battery impact) minimal.
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 15 * 60, repeats: true) { [weak self] _ in
+        // Configurable via AppConfig (see ~/.config/overcast/config.json), defaults to 15 min.
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: refreshIntervalMinutes * 60, repeats: true) { [weak self] _ in
             Task { await self?.fetchWeather() }
         }
     }
@@ -38,6 +38,9 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
         if let lat = config.fallbackLatitude, let lon = config.fallbackLongitude {
             fallbackLatitude = lat
             fallbackLongitude = lon
+        }
+        if let minutes = config.refreshIntervalMinutes {
+            refreshIntervalMinutes = Double(minutes)
         }
     }
 
