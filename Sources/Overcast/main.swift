@@ -26,12 +26,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let hostingView = NSHostingView(rootView: contentView)
         hostingView.sizingOptions = [.preferredContentSize]
+        hostingView.menu = makeContextMenu()
 
+        let panelSize = NSSize(width: 220, height: 120)
         let config = AppConfig.load()
-        let origin = NSPoint(x: config?.panelX ?? Double(Self.defaultPanelOrigin.x),
-                              y: config?.panelY ?? Double(Self.defaultPanelOrigin.y))
+        let savedOrigin = NSPoint(x: config?.panelX ?? Double(Self.defaultPanelOrigin.x),
+                                   y: config?.panelY ?? Double(Self.defaultPanelOrigin.y))
+        let origin = Self.clamp(origin: savedOrigin, size: panelSize)
 
-        panel = FloatingPanel(contentRect: NSRect(origin: origin, size: NSSize(width: 220, height: 120)))
+        panel = FloatingPanel(contentRect: NSRect(origin: origin, size: panelSize))
         panel.contentView = hostingView
         panel.alphaValue = config?.opacity.map { CGFloat($0) } ?? 1.0
         panel.makeKeyAndOrderFront(nil)
@@ -50,6 +53,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ) { [weak self] _ in
             Task { @MainActor in self?.savePanelPosition() }
         }
+
+        // LSUIElement hides the menu bar entirely, so there's no Application
+        // menu to catch Cmd+Q — intercept it manually instead.
+        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            if event.modifierFlags.contains(.command), event.charactersIgnoringModifiers == "q" {
+                NSApp.terminate(nil)
+                return nil
+            }
+            return event
+        }
+    }
+
+    private func makeContextMenu() -> NSMenu {
+        let menu = NSMenu()
+        menu.addItem(NSMenuItem(title: "Settings…", action: #selector(openSettingsMenuAction), keyEquivalent: ""))
+        menu.addItem(.separator())
+        menu.addItem(NSMenuItem(title: "Quit", action: #selector(quitMenuAction), keyEquivalent: "q"))
+        menu.items.forEach { $0.target = self }
+        return menu
+    }
+
+    @objc private func openSettingsMenuAction() {
+        openSettings()
+    }
+
+    @objc private func quitMenuAction() {
+        NSApp.terminate(nil)
+    }
+
+    /// Keeps the panel's origin within the visible frame of some connected screen,
+    /// so a drag past an edge (or a disconnected external monitor) can't strand it
+    /// somewhere permanently unreachable.
+    private static func clamp(origin: NSPoint, size: NSSize) -> NSPoint {
+        let frame = NSRect(origin: origin, size: size)
+        let onScreen = NSScreen.screens.contains { $0.visibleFrame.intersects(frame) }
+        guard !onScreen, let mainFrame = NSScreen.main?.visibleFrame else { return origin }
+        return NSPoint(
+            x: min(max(origin.x, mainFrame.minX), mainFrame.maxX - size.width),
+            y: min(max(origin.y, mainFrame.minY), mainFrame.maxY - size.height)
+        )
     }
 
     private func savePanelPosition() {

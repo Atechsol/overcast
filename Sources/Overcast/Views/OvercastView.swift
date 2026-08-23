@@ -61,15 +61,6 @@ struct OvercastView: View {
         .fixedSize()
         .onReceive(clockTimer) { now = $0 }
         .onReceive(faceTimer) { _ in frameIndex += 1 }
-        .contextMenu {
-            Button("Settings…") {
-                (NSApp.delegate as? AppDelegate)?.openSettings()
-            }
-            Divider()
-            Button("Quit") {
-                NSApp.terminate(nil)
-            }
-        }
     }
 
     private var currentFrame: String {
