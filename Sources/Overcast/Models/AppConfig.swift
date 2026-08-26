@@ -9,6 +9,7 @@ struct AppConfig: Codable {
     var opacity: Double?
     var panelX: Double?
     var panelY: Double?
+    var dockedEdge: String?
 
     static func configURL() -> URL {
         let home = FileManager.default.homeDirectoryForCurrentUser
