@@ -16,8 +16,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var eventListener: EventListener?
 
     static let defaultPanelOrigin = NSPoint(x: 100, y: 100)
-    static let floatingSize = NSSize(width: 190, height: 190)
-    static let dockedSize = NSSize(width: 82, height: 207)
+    static let floatingSize = NSSize(width: 205, height: 205)
+    static let dockedSize = NSSize(width: 88, height: 224)
     static let dockThreshold: CGFloat = 24
     static let undockThreshold: CGFloat = 40
 

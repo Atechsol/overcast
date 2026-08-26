@@ -16,7 +16,7 @@ struct OvercastView: View {
             if let edge = dockState.edge {
                 dockedContent
                     .padding(10)
-                    .frame(width: 52, height: 147)
+                    .frame(width: 58, height: 164)
                     .background {
                         DockedShape(edge: edge)
                             .fill(Color.black.opacity(0.72))
@@ -40,7 +40,7 @@ struct OvercastView: View {
             } else {
                 floatingContent
                     .padding(12)
-                    .frame(width: 130, height: 130)
+                    .frame(width: 145, height: 145)
                     .background {
                         let shape = RoundedRectangle(cornerRadius: 34, style: .continuous)
                         // A plain fill, not .ultraThinMaterial: that's backed by a
