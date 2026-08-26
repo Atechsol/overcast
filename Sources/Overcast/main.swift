@@ -16,8 +16,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var eventListener: EventListener?
 
     static let defaultPanelOrigin = NSPoint(x: 100, y: 100)
-    static let floatingSize = NSSize(width: 210, height: 210)
-    static let dockedSize = NSSize(width: 90, height: 230)
+    static let floatingSize = NSSize(width: 190, height: 190)
+    static let dockedSize = NSSize(width: 82, height: 207)
     static let dockThreshold: CGFloat = 24
     static let undockThreshold: CGFloat = 40
 
@@ -82,13 +82,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// at the saved/default position.
     private static func restoredFrame(from config: AppConfig?) -> (origin: NSPoint, size: NSSize) {
         if let rawEdge = config?.dockedEdge, let edge = DockedEdge(rawValue: rawEdge) {
+            let size = fitted(dockedSize, to: NSScreen.main)
             let y = config?.panelY ?? Double(defaultPanelOrigin.y)
-            let x = edge == .left ? outerLeftX() : outerRightX() - Double(dockedSize.width)
-            return (NSPoint(x: x, y: y), dockedSize)
+            let x = edge == .left ? outerLeftX() : outerRightX() - Double(size.width)
+            return (NSPoint(x: x, y: y), size)
         }
+        let size = fitted(floatingSize, to: NSScreen.main)
         let savedOrigin = NSPoint(x: config?.panelX ?? Double(defaultPanelOrigin.x),
                                    y: config?.panelY ?? Double(defaultPanelOrigin.y))
-        return (clamp(origin: savedOrigin, size: floatingSize), floatingSize)
+        return (clamp(origin: savedOrigin, size: size), size)
+    }
+
+    /// Caps a target size to fit within a screen's visible area — the fixed
+    /// point sizes above are fine on any real Mac display, but this is a
+    /// safety net against an unusually small/constrained one (e.g. an
+    /// external display stuck in a low-res mode) where the widget could
+    /// otherwise render larger than the screen itself and be unreachable.
+    /// A no-op on any normal-sized screen — doesn't change default sizing.
+    private static func fitted(_ size: NSSize, to screen: NSScreen?) -> NSSize {
+        guard let visible = screen?.visibleFrame else { return size }
+        return NSSize(width: min(size.width, visible.width), height: min(size.height, visible.height))
     }
 
     private static func outerLeftX() -> Double {
@@ -124,17 +137,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func dock(to edge: DockedEdge) {
+        let screen = panel.screen ?? NSScreen.main
+        let size = Self.fitted(Self.dockedSize, to: screen)
         let leftX = Self.outerLeftX()
         let rightX = Self.outerRightX()
-        let x = edge == .left ? leftX : rightX - Double(Self.dockedSize.width)
+        let x = edge == .left ? leftX : rightX - Double(size.width)
 
-        let screen = panel.screen ?? NSScreen.main
         let visible = screen?.visibleFrame ?? panel.frame
-        let y = min(max(panel.frame.midY - Double(Self.dockedSize.height) / 2, visible.minY),
-                    visible.maxY - Double(Self.dockedSize.height))
+        let y = min(max(panel.frame.midY - Double(size.height) / 2, visible.minY),
+                    visible.maxY - Double(size.height))
 
         dockState.edge = edge
-        panel.setFrame(NSRect(x: x, y: y, width: Self.dockedSize.width, height: Self.dockedSize.height),
+        panel.setFrame(NSRect(x: x, y: y, width: size.width, height: size.height),
                         display: true, animate: true)
         refreshContextMenu()
         savePanelPosition()
@@ -142,12 +156,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func undock() {
         let screen = panel.screen ?? NSScreen.main
+        let size = Self.fitted(Self.floatingSize, to: screen)
         let visible = screen?.visibleFrame ?? panel.frame
-        let y = min(max(panel.frame.midY - Double(Self.floatingSize.height) / 2, visible.minY),
-                    visible.maxY - Double(Self.floatingSize.height))
+        let y = min(max(panel.frame.midY - Double(size.height) / 2, visible.minY),
+                    visible.maxY - Double(size.height))
 
         dockState.edge = nil
-        panel.setFrame(NSRect(x: panel.frame.minX, y: y, width: Self.floatingSize.width, height: Self.floatingSize.height),
+        panel.setFrame(NSRect(x: panel.frame.minX, y: y, width: size.width, height: size.height),
                         display: true, animate: true)
         refreshContextMenu()
         savePanelPosition()
