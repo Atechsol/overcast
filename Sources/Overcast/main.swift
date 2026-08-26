@@ -51,8 +51,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             object: panel,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor in
-                guard let self else { return }
+            guard let self else { return }
+            Task { @MainActor [self] in
                 self.savePanelPosition()
             }
         }

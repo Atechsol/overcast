@@ -29,8 +29,8 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
 
         // Configurable via AppConfig (see ~/.config/overcast/config.json), defaults to 15 min.
         refreshTimer = Timer.scheduledTimer(withTimeInterval: refreshIntervalMinutes * 60, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                guard let self else { return }
+            guard let self else { return }
+            Task { @MainActor [self] in
                 await self.fetchWeather()
             }
         }
