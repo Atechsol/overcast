@@ -42,6 +42,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel = FloatingPanel(contentRect: NSRect(origin: origin, size: size))
         panel.contentView = hostingView
         panel.alphaValue = config?.opacity.map { CGFloat($0) } ?? 1.0
+        panel.onDragEnd = { [weak self] in self?.checkDockSnap() }
         panel.makeKeyAndOrderFront(nil)
 
         refreshContextMenu()
@@ -62,16 +63,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task { @MainActor [self] in
                 self.savePanelPosition()
             }
-        }
-
-        // isMovableByWindowBackground fires didMove continuously through an
-        // active drag, not just on release — resizing the panel mid-drag
-        // (which dock/undock does) fights AppKit's own drag-tracking loop
-        // and makes it feel stuck. Only check dock/undock once the mouse
-        // actually comes up.
-        NSEvent.addLocalMonitorForEvents(matching: .leftMouseUp) { [weak self] event in
-            self?.checkDockSnap()
-            return event
         }
 
         // LSUIElement hides the menu bar entirely, so there's no Application
