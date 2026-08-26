@@ -22,8 +22,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     static let undockThreshold: CGFloat = 40
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Hide from Dock + Cmd-Tab: this is a background utility, not a regular app.
-        NSApp.setActivationPolicy(.accessory)
+        NSApp.setActivationPolicy(.regular)
+        NSApp.mainMenu = makeMainMenu()
 
         let contentView = OvercastView()
             .environmentObject(weatherService)
@@ -64,16 +64,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.savePanelPosition()
             }
         }
+    }
 
-        // LSUIElement hides the menu bar entirely, so there's no Application
-        // menu to catch Cmd+Q — intercept it manually instead.
-        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            if event.modifierFlags.contains(.command), event.charactersIgnoringModifiers == "q" {
-                NSApp.terminate(nil)
-                return nil
-            }
-            return event
-        }
+    /// A regular Dock app needs a real menu bar — an empty one next to the
+    /// Dock icon reads as broken. Cmd+Q/Cmd+, work through this natively now,
+    /// no manual key-event monitor needed.
+    private func makeMainMenu() -> NSMenu {
+        let mainMenu = NSMenu()
+
+        let appMenuItem = NSMenuItem()
+        mainMenu.addItem(appMenuItem)
+        let appMenu = NSMenu()
+        appMenuItem.submenu = appMenu
+
+        appMenu.addItem(NSMenuItem(
+            title: "About Overcast",
+            action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)),
+            keyEquivalent: ""
+        ))
+        appMenu.addItem(.separator())
+
+        let settingsItem = NSMenuItem(title: "Settings…", action: #selector(openSettingsMenuAction), keyEquivalent: ",")
+        settingsItem.target = self
+        appMenu.addItem(settingsItem)
+        appMenu.addItem(.separator())
+
+        let quitItem = NSMenuItem(title: "Quit Overcast", action: #selector(quitMenuAction), keyEquivalent: "q")
+        quitItem.target = self
+        appMenu.addItem(quitItem)
+
+        return mainMenu
     }
 
     /// Resolves the launch frame: docked (flush against the saved edge, using
