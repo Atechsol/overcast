@@ -177,13 +177,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func undock() {
         let screen = panel.screen ?? NSScreen.main
         let size = Self.fitted(Self.floatingSize, to: screen)
-        let visible = screen?.visibleFrame ?? panel.frame
-        let y = min(max(panel.frame.midY - Double(size.height) / 2, visible.minY),
-                    visible.maxY - Double(size.height))
+        // Keeping the docked x (flush at the screen edge) while growing to the
+        // wider floating size pushed the far edge straight off-screen. Return
+        // to the default position instead, clamped to whatever screen this is.
+        let origin = Self.clamp(origin: Self.defaultPanelOrigin, size: size)
 
         dockState.edge = nil
-        panel.setFrame(NSRect(x: panel.frame.minX, y: y, width: size.width, height: size.height),
-                        display: true, animate: true)
+        panel.setFrame(NSRect(origin: origin, size: size), display: true, animate: true)
         refreshContextMenu()
         savePanelPosition()
     }
