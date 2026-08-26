@@ -45,8 +45,8 @@ Create `~/.config/overcast/config.json` (copy from `config.example.json`):
 
 ```json
 {
-  "fallbackLatitude": 11.2588,
-  "fallbackLongitude": 75.7804,
+  "fallbackLatitude": 37.7749,
+  "fallbackLongitude": -122.4194,
   "refreshIntervalMinutes": 15
 }
 ```
@@ -79,7 +79,7 @@ fi
 ## Installing via Homebrew (once released)
 
 ```bash
-brew tap yourname/overcast
+brew tap Aleem/overcast
 brew install --cask overcast
 ```
 

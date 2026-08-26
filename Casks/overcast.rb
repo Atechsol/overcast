@@ -2,10 +2,10 @@ cask "overcast" do
   version "0.1.0"
   sha256 "REPLACE_WITH_ACTUAL_SHA256_OF_RELEASE_ZIP"
 
-  url "https://github.com/YOURNAME/overcast/releases/download/v#{version}/Overcast.app.zip"
+  url "https://github.com/Aleem/overcast/releases/download/v#{version}/Overcast.app.zip"
   name "Overcast"
   desc "Lightweight floating widget showing time, weather, and dev mood"
-  homepage "https://github.com/YOURNAME/overcast"
+  homepage "https://github.com/Aleem/overcast"
 
   app "Overcast.app"
 
