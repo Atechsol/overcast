@@ -16,7 +16,7 @@ struct OvercastView: View {
             if let edge = dockState.edge {
                 dockedContent
                     .padding(10)
-                    .frame(width: 60, height: 170)
+                    .frame(width: 52, height: 147)
                     .background {
                         DockedShape(edge: edge)
                             .fill(Color.black.opacity(0.72))
@@ -40,7 +40,7 @@ struct OvercastView: View {
             } else {
                 floatingContent
                     .padding(12)
-                    .frame(width: 150, height: 150)
+                    .frame(width: 130, height: 130)
                     .background {
                         let shape = RoundedRectangle(cornerRadius: 34, style: .continuous)
                         // A plain fill, not .ultraThinMaterial: that's backed by a
@@ -109,26 +109,17 @@ struct OvercastView: View {
 
     /// Narrow strip shown while docked to a screen edge: weather symbol,
     /// hour and minute each inline (not split into individual stacked
-    /// digits) separated by a "__" line, and the AM/PM suffix at the bottom.
+    /// digits), and the AM/PM suffix at the bottom.
     private var dockedContent: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 10) {
             Text(weatherService.currentDescriptor.symbol)
                 .font(.title3)
 
-            VStack(spacing: 4) {
+            VStack(spacing: 8) {
                 Text(hourString)
                     .font(.custom("Antonio", size: 15))
                     .fontWeight(.bold)
                     .monospacedDigit()
-
-                // A real bar shape, not a Text("__") — the underscore glyph
-                // sits low in its own line-height box (near its baseline),
-                // so the empty space above it made the gap to the hour line
-                // look bigger than the gap to the minute line below, even
-                // with equal VStack spacing. A shape has no such asymmetry.
-                Capsule()
-                    .fill(Color.primary)
-                    .frame(width: 14, height: 2)
 
                 Text(minuteString)
                     .font(.custom("Antonio", size: 15))
