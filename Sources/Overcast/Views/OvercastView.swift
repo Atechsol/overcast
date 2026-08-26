@@ -66,20 +66,24 @@ struct OvercastView: View {
                 .contentTransition(.identity)
                 .animation(nil, value: frameIndex)
 
-            Text(timeString)
-                .font(.custom("Antonio", size: 20))
-                .fontWeight(.bold)
-                .monospacedDigit()
+            (
+                Text(numericTimeString)
+                    .font(.custom("Antonio", size: 20))
+                    .fontWeight(.bold)
+                + Text(" " + amPmString)
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+            )
+            .monospacedDigit()
 
             HStack(spacing: 4) {
                 Text(weatherService.currentDescriptor.symbol)
                 Text(weatherService.currentDescriptor.label)
-                    .font(.custom("Antonio", size: 13))
+                    .font(.caption)
             }
             .foregroundStyle(.secondary)
 
             Text(moodManager.currentMood.message)
-                .font(.custom("Antonio", size: 12))
+                .font(.caption2)
                 .italic()
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
@@ -88,8 +92,7 @@ struct OvercastView: View {
             if weatherService.needsLocationPermission {
                 Button(action: weatherService.openLocationSettings) {
                     Text("Enable Location for accurate weather →")
-                        .font(.custom("Antonio", size: 12))
-                        .fontWeight(.medium)
+                        .font(.caption2.weight(.medium))
                         .multilineTextAlignment(.center)
                         .frame(width: 115)
                 }
@@ -119,8 +122,7 @@ struct OvercastView: View {
             }
 
             Text(amPmString)
-                .font(.custom("Antonio", size: 11))
-                .fontWeight(.semibold)
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
                 .foregroundStyle(.secondary)
         }
     }
@@ -129,12 +131,6 @@ struct OvercastView: View {
         let frames = moodManager.currentMood.frames
         guard !frames.isEmpty else { return "" }
         return frames[frameIndex % frames.count]
-    }
-
-    private var timeString: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a"
-        return formatter.string(from: now)
     }
 
     private var numericTimeString: String {
