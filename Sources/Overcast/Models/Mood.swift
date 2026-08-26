@@ -51,7 +51,10 @@ final class MoodManager: ObservableObject {
     func startAutoRotate(interval: TimeInterval = 8) {
         rotateTimer?.invalidate()
         rotateTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.advanceRotation() }
+            Task { @MainActor in
+                guard let self else { return }
+                self.advanceRotation()
+            }
         }
     }
 
@@ -80,8 +83,9 @@ final class MoodManager: ObservableObject {
         if event != .focusMode && event != .reset {
             revertTimer = Timer.scheduledTimer(withTimeInterval: 60 * 5, repeats: false) { [weak self] _ in
                 Task { @MainActor in
-                    self?.currentMood = .neutral
-                    self?.startAutoRotate()
+                    guard let self else { return }
+                    self.currentMood = .neutral
+                    self.startAutoRotate()
                 }
             }
         } else if event == .reset {

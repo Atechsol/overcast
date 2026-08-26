@@ -51,7 +51,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             object: panel,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor in self?.savePanelPosition() }
+            Task { @MainActor in
+                guard let self else { return }
+                self.savePanelPosition()
+            }
         }
 
         // LSUIElement hides the menu bar entirely, so there's no Application
