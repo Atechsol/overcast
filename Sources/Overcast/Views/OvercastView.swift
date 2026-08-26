@@ -24,7 +24,12 @@ struct OvercastView: View {
                     }
                     .clipShape(DockedShape(edge: edge))
                     .compositingGroup()
-                    .shadow(color: .black.opacity(0.35), radius: 20, x: 0, y: 8)
+                    // Smaller radius/offset than the floating card's: at 20/y:8 the
+                    // blur needed more clearance than the 30pt shadow padding below
+                    // reserved, especially combined with the downward y-offset —
+                    // getting clipped by the hosting view's bounds read as a hard,
+                    // squared-off edge instead of a soft shadow.
+                    .shadow(color: .black.opacity(0.35), radius: 10, x: 0, y: 4)
                     // Shadow clearance on every side EXCEPT the one flush against the
                     // screen edge — padding that side would push the visible card away
                     // from the edge instead of sitting flush against it.
@@ -116,11 +121,14 @@ struct OvercastView: View {
                     .fontWeight(.bold)
                     .monospacedDigit()
 
-                // A bare ":" reads as a tiny stray dot stacked on its own
-                // line; "__" reads clearly as a separator in this layout.
-                Text("__")
-                    .font(.custom("Antonio", size: 15))
-                    .fontWeight(.bold)
+                // A real bar shape, not a Text("__") — the underscore glyph
+                // sits low in its own line-height box (near its baseline),
+                // so the empty space above it made the gap to the hour line
+                // look bigger than the gap to the minute line below, even
+                // with equal VStack spacing. A shape has no such asymmetry.
+                Capsule()
+                    .fill(Color.primary)
+                    .frame(width: 14, height: 2)
 
                 Text(minuteString)
                     .font(.custom("Antonio", size: 15))
