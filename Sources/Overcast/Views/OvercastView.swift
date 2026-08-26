@@ -35,30 +35,36 @@ struct OvercastView: View {
                 .italic()
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
-                .frame(width: 180)
+                .frame(width: 125)
 
             if weatherService.needsLocationPermission {
                 Button(action: weatherService.openLocationSettings) {
                     Text("Enable Location for accurate weather →")
                         .font(.caption2.weight(.medium))
+                        .multilineTextAlignment(.center)
+                        .frame(width: 115)
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.orange)
             }
         }
-        .padding(18)
+        .padding(12)
+        .frame(width: 150, height: 150)
         .background {
             let shape = RoundedRectangle(cornerRadius: 34, style: .continuous)
+            // A plain fill, not .ultraThinMaterial: that's backed by a
+            // separate NSVisualEffectView whose blur ignores clipShape on a
+            // transparent, non-opaque NSPanel — it bled out to a rectangle
+            // instead of following the rounded card.
             shape
-                .fill(.ultraThinMaterial)
-                .overlay(shape.fill(Color.black.opacity(0.45)))
+                .fill(Color.black.opacity(0.72))
                 .overlay(shape.strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
         }
         .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
         .compositingGroup()
         .shadow(color: .black.opacity(0.35), radius: 20, x: 0, y: 8)
+        .padding(30) // reserves room so the blurred shadow isn't clipped by the hosting view's bounds
         .preferredColorScheme(.dark)
-        .fixedSize()
         .onReceive(clockTimer) { now = $0 }
         .onReceive(faceTimer) { _ in frameIndex += 1 }
     }

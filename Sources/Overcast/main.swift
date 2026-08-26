@@ -28,7 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hostingView.sizingOptions = [.preferredContentSize]
         hostingView.menu = makeContextMenu()
 
-        let panelSize = NSSize(width: 220, height: 120)
+        let panelSize = NSSize(width: 210, height: 210)
         let config = AppConfig.load()
         let savedOrigin = NSPoint(x: config?.panelX ?? Double(Self.defaultPanelOrigin.x),
                                    y: config?.panelY ?? Double(Self.defaultPanelOrigin.y))
@@ -114,9 +114,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func openSettings() {
         if settingsWindow == nil {
-            let settingsView = SettingsView { [weak self] in
-                self?.resetPanelPosition()
-            }
+            let settingsView = SettingsView(
+                onResetPosition: { [weak self] in
+                    self?.resetPanelPosition()
+                },
+                onOpacityChange: { [weak self] value in
+                    self?.panel.alphaValue = CGFloat(value)
+                }
+            )
             let window = NSWindow(
                 contentRect: NSRect(x: 0, y: 0, width: 320, height: 360),
                 styleMask: [.titled, .closable],

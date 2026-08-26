@@ -32,4 +32,15 @@ final class FloatingPanel: NSPanel {
 
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
+
+    // NSHostingView's SwiftUI content swallows rightMouseDown before AppKit's
+    // default "show contentView.menu" handling ever runs, so a right-click
+    // never reached it. Pop the menu directly at the window level instead.
+    override func rightMouseDown(with event: NSEvent) {
+        guard let contentView, let menu = contentView.menu else {
+            super.rightMouseDown(with: event)
+            return
+        }
+        NSMenu.popUpContextMenu(menu, with: event, for: contentView)
+    }
 }
