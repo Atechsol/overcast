@@ -12,9 +12,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var settingsWindow: NSWindow?
     var weatherService = WeatherService()
     var moodManager = MoodManager()
+    var dockState = PanelDockState()
     var eventListener: EventListener?
 
     static let defaultPanelOrigin = NSPoint(x: 100, y: 100)
+    static let floatingSize = NSSize(width: 210, height: 210)
+    static let dockedSize = NSSize(width: 90, height: 230)
+    static let dockThreshold: CGFloat = 24
+    static let undockThreshold: CGFloat = 40
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Hide from Dock + Cmd-Tab: this is a background utility, not a regular app.
@@ -23,21 +28,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let contentView = OvercastView()
             .environmentObject(weatherService)
             .environmentObject(moodManager)
+            .environmentObject(dockState)
 
         let hostingView = NSHostingView(rootView: contentView)
         hostingView.sizingOptions = [.preferredContentSize]
-        hostingView.menu = makeContextMenu()
 
-        let panelSize = NSSize(width: 210, height: 210)
         let config = AppConfig.load()
-        let savedOrigin = NSPoint(x: config?.panelX ?? Double(Self.defaultPanelOrigin.x),
-                                   y: config?.panelY ?? Double(Self.defaultPanelOrigin.y))
-        let origin = Self.clamp(origin: savedOrigin, size: panelSize)
+        let (origin, size) = Self.restoredFrame(from: config)
+        if let rawEdge = config?.dockedEdge, let edge = DockedEdge(rawValue: rawEdge) {
+            dockState.edge = edge
+        }
 
-        panel = FloatingPanel(contentRect: NSRect(origin: origin, size: panelSize))
+        panel = FloatingPanel(contentRect: NSRect(origin: origin, size: size))
         panel.contentView = hostingView
         panel.alphaValue = config?.opacity.map { CGFloat($0) } ?? 1.0
         panel.makeKeyAndOrderFront(nil)
+
+        refreshContextMenu()
 
         weatherService.start()
         moodManager.startAutoRotate()
@@ -57,6 +64,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
+        // isMovableByWindowBackground fires didMove continuously through an
+        // active drag, not just on release — resizing the panel mid-drag
+        // (which dock/undock does) fights AppKit's own drag-tracking loop
+        // and makes it feel stuck. Only check dock/undock once the mouse
+        // actually comes up.
+        NSEvent.addLocalMonitorForEvents(matching: .leftMouseUp) { [weak self] event in
+            self?.checkDockSnap()
+            return event
+        }
+
         // LSUIElement hides the menu bar entirely, so there's no Application
         // menu to catch Cmd+Q — intercept it manually instead.
         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
@@ -68,9 +85,97 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// Resolves the launch frame: docked (flush against the saved edge, using
+    /// the current screen arrangement's outer bounds — this machine's monitor
+    /// layout may differ from whenever the position was last saved) or floating
+    /// at the saved/default position.
+    private static func restoredFrame(from config: AppConfig?) -> (origin: NSPoint, size: NSSize) {
+        if let rawEdge = config?.dockedEdge, let edge = DockedEdge(rawValue: rawEdge) {
+            let y = config?.panelY ?? Double(defaultPanelOrigin.y)
+            let x = edge == .left ? outerLeftX() : outerRightX() - Double(dockedSize.width)
+            return (NSPoint(x: x, y: y), dockedSize)
+        }
+        let savedOrigin = NSPoint(x: config?.panelX ?? Double(defaultPanelOrigin.x),
+                                   y: config?.panelY ?? Double(defaultPanelOrigin.y))
+        return (clamp(origin: savedOrigin, size: floatingSize), floatingSize)
+    }
+
+    private static func outerLeftX() -> Double {
+        Double(NSScreen.screens.map { $0.frame.minX }.min() ?? defaultPanelOrigin.x)
+    }
+
+    private static func outerRightX() -> Double {
+        Double(NSScreen.screens.map { $0.frame.maxX }.max() ?? defaultPanelOrigin.x)
+    }
+
+    /// Checks the panel's position against the outer edges of the full
+    /// multi-screen arrangement (not each screen's own edges — only the
+    /// leftmost edge of the leftmost monitor and the rightmost edge of the
+    /// rightmost one dock; an inner edge between two side-by-side monitors
+    /// is just contiguous desktop space) and docks/undocks accordingly.
+    private func checkDockSnap() {
+        let leftX = Self.outerLeftX()
+        let rightX = Self.outerRightX()
+        let frame = panel.frame
+
+        if dockState.edge == nil {
+            if frame.minX - leftX <= Self.dockThreshold {
+                dock(to: .left)
+            } else if rightX - frame.maxX <= Self.dockThreshold {
+                dock(to: .right)
+            }
+        } else if let edge = dockState.edge {
+            let distance = edge == .left ? (frame.minX - leftX) : (rightX - frame.maxX)
+            if distance > Self.undockThreshold {
+                undock()
+            }
+        }
+    }
+
+    private func dock(to edge: DockedEdge) {
+        let leftX = Self.outerLeftX()
+        let rightX = Self.outerRightX()
+        let x = edge == .left ? leftX : rightX - Double(Self.dockedSize.width)
+
+        let screen = panel.screen ?? NSScreen.main
+        let visible = screen?.visibleFrame ?? panel.frame
+        let y = min(max(panel.frame.midY - Double(Self.dockedSize.height) / 2, visible.minY),
+                    visible.maxY - Double(Self.dockedSize.height))
+
+        dockState.edge = edge
+        panel.setFrame(NSRect(x: x, y: y, width: Self.dockedSize.width, height: Self.dockedSize.height),
+                        display: true, animate: true)
+        refreshContextMenu()
+        savePanelPosition()
+    }
+
+    private func undock() {
+        let screen = panel.screen ?? NSScreen.main
+        let visible = screen?.visibleFrame ?? panel.frame
+        let y = min(max(panel.frame.midY - Double(Self.floatingSize.height) / 2, visible.minY),
+                    visible.maxY - Double(Self.floatingSize.height))
+
+        dockState.edge = nil
+        panel.setFrame(NSRect(x: panel.frame.minX, y: y, width: Self.floatingSize.width, height: Self.floatingSize.height),
+                        display: true, animate: true)
+        refreshContextMenu()
+        savePanelPosition()
+    }
+
+    private func refreshContextMenu() {
+        panel.contentView?.menu = makeContextMenu()
+    }
+
     private func makeContextMenu() -> NSMenu {
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: "Settings…", action: #selector(openSettingsMenuAction), keyEquivalent: ""))
+        menu.addItem(.separator())
+        if dockState.edge == nil {
+            menu.addItem(NSMenuItem(title: "Dock Left", action: #selector(dockLeftMenuAction), keyEquivalent: ""))
+            menu.addItem(NSMenuItem(title: "Dock Right", action: #selector(dockRightMenuAction), keyEquivalent: ""))
+        } else {
+            menu.addItem(NSMenuItem(title: "Undock", action: #selector(undockMenuAction), keyEquivalent: ""))
+        }
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(quitMenuAction), keyEquivalent: "q"))
         menu.items.forEach { $0.target = self }
@@ -79,6 +184,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func openSettingsMenuAction() {
         openSettings()
+    }
+
+    @objc private func dockLeftMenuAction() {
+        dock(to: .left)
+    }
+
+    @objc private func dockRightMenuAction() {
+        dock(to: .right)
+    }
+
+    @objc private func undockMenuAction() {
+        undock()
     }
 
     @objc private func quitMenuAction() {
@@ -109,6 +226,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         config.panelX = panel.frame.origin.x
         config.panelY = panel.frame.origin.y
+        config.dockedEdge = dockState.edge?.rawValue
         config.save()
     }
 
@@ -139,6 +257,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func resetPanelPosition() {
+        if dockState.edge != nil {
+            undock()
+        }
         var config = AppConfig.load() ?? AppConfig(
             fallbackLatitude: nil,
             fallbackLongitude: nil,
@@ -149,6 +270,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         config.panelX = nil
         config.panelY = nil
+        config.dockedEdge = nil
         config.save()
     }
 }
