@@ -51,7 +51,13 @@ final class MoodManager: ObservableObject {
     func startAutoRotate(interval: TimeInterval = 8) {
         rotateTimer?.invalidate()
         rotateTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.advanceRotation() }
+            // Unwrap outside the Task — the CI toolchain's strict-concurrency
+            // checker rejects unwrapping a weak self inside an already
+            // concurrently-executing Task closure, even via guard let.
+            guard let self else { return }
+            Task { @MainActor [self] in
+                self.advanceRotation()
+            }
         }
     }
 
@@ -79,9 +85,10 @@ final class MoodManager: ObservableObject {
         revertTimer?.invalidate()
         if event != .focusMode && event != .reset {
             revertTimer = Timer.scheduledTimer(withTimeInterval: 60 * 5, repeats: false) { [weak self] _ in
-                Task { @MainActor in
-                    self?.currentMood = .neutral
-                    self?.startAutoRotate()
+                guard let self else { return }
+                Task { @MainActor [self] in
+                    self.currentMood = .neutral
+                    self.startAutoRotate()
                 }
             }
         } else if event == .reset {

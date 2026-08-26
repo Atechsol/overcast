@@ -29,7 +29,14 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
 
         // Configurable via AppConfig (see ~/.config/overcast/config.json), defaults to 15 min.
         refreshTimer = Timer.scheduledTimer(withTimeInterval: refreshIntervalMinutes * 60, repeats: true) { [weak self] _ in
-            Task { await self?.fetchWeather() }
+            // Unwrap outside the Task, not inside it — the CI toolchain's
+            // strict-concurrency checker rejects unwrapping a weak self
+            // while already inside a concurrently-executing closure, even
+            // via guard let.
+            guard let self else { return }
+            Task { @MainActor [self] in
+                await self.fetchWeather()
+            }
         }
     }
 
