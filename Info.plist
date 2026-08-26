@@ -8,6 +8,8 @@
     <string>com.aleemahamed.overcast</string>
     <key>CFBundleExecutable</key>
     <string>Overcast</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleVersion</key>
     <string>0.1.0</string>
     <key>CFBundleShortVersionString</key>
