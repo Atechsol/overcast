@@ -103,22 +103,29 @@ struct OvercastView: View {
     }
 
     /// Narrow strip shown while docked to a screen edge: weather symbol,
-    /// the time stacked one character per line, and the AM/PM suffix
-    /// inline (not split into its own stacked letters) at the bottom.
+    /// hour and minute each inline (not split into individual stacked
+    /// digits) separated by a "__" line, and the AM/PM suffix at the bottom.
     private var dockedContent: some View {
         VStack(spacing: 6) {
             Text(weatherService.currentDescriptor.symbol)
                 .font(.title3)
 
-            VStack(spacing: 2) {
-                ForEach(Array(numericTimeString.enumerated()), id: \.offset) { item in
-                    // A bare ":" reads as a tiny stray dot stacked on its own
-                    // line; "__" reads clearly as a separator in this layout.
-                    Text(item.element == ":" ? "__" : String(item.element))
-                        .font(.custom("Antonio", size: 15))
-                        .fontWeight(.bold)
-                        .monospacedDigit()
-                }
+            VStack(spacing: 4) {
+                Text(hourString)
+                    .font(.custom("Antonio", size: 15))
+                    .fontWeight(.bold)
+                    .monospacedDigit()
+
+                // A bare ":" reads as a tiny stray dot stacked on its own
+                // line; "__" reads clearly as a separator in this layout.
+                Text("__")
+                    .font(.custom("Antonio", size: 15))
+                    .fontWeight(.bold)
+
+                Text(minuteString)
+                    .font(.custom("Antonio", size: 15))
+                    .fontWeight(.bold)
+                    .monospacedDigit()
             }
 
             Text(amPmString)
@@ -136,6 +143,18 @@ struct OvercastView: View {
     private var numericTimeString: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "h:mm"
+        return formatter.string(from: now)
+    }
+
+    private var hourString: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h"
+        return formatter.string(from: now)
+    }
+
+    private var minuteString: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "mm"
         return formatter.string(from: now)
     }
 
