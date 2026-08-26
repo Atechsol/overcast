@@ -4,6 +4,7 @@ import AppKit
 struct OvercastView: View {
     @EnvironmentObject var weatherService: WeatherService
     @EnvironmentObject var moodManager: MoodManager
+    @EnvironmentObject var dockState: PanelDockState
     @State private var now: Date = Date()
     @State private var frameIndex: Int = 0
 
@@ -11,6 +12,57 @@ struct OvercastView: View {
     private let faceTimer = Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()
 
     var body: some View {
+        Group {
+            if let edge = dockState.edge {
+                dockedContent
+                    .padding(10)
+                    .frame(width: 52, height: 147)
+                    .background {
+                        DockedShape(edge: edge)
+                            .fill(Color.black.opacity(0.72))
+                            .overlay(DockedShape(edge: edge).stroke(Color.white.opacity(0.12), lineWidth: 1))
+                    }
+                    .clipShape(DockedShape(edge: edge))
+                    .compositingGroup()
+                    // Smaller radius/offset than the floating card's: at 20/y:8 the
+                    // blur needed more clearance than the 30pt shadow padding below
+                    // reserved, especially combined with the downward y-offset —
+                    // getting clipped by the hosting view's bounds read as a hard,
+                    // squared-off edge instead of a soft shadow.
+                    .shadow(color: .black.opacity(0.35), radius: 10, x: 0, y: 4)
+                    // Shadow clearance on every side EXCEPT the one flush against the
+                    // screen edge — padding that side would push the visible card away
+                    // from the edge instead of sitting flush against it.
+                    .padding(.top, 30)
+                    .padding(.bottom, 30)
+                    .padding(.leading, edge == .left ? 0 : 30)
+                    .padding(.trailing, edge == .right ? 0 : 30)
+            } else {
+                floatingContent
+                    .padding(12)
+                    .frame(width: 130, height: 130)
+                    .background {
+                        let shape = RoundedRectangle(cornerRadius: 34, style: .continuous)
+                        // A plain fill, not .ultraThinMaterial: that's backed by a
+                        // separate NSVisualEffectView whose blur ignores clipShape on a
+                        // transparent, non-opaque NSPanel — it bled out to a rectangle
+                        // instead of following the rounded card.
+                        shape
+                            .fill(Color.black.opacity(0.72))
+                            .overlay(shape.strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
+                    .compositingGroup()
+                    .shadow(color: .black.opacity(0.35), radius: 20, x: 0, y: 8)
+                    .padding(30) // reserves room so the blurred shadow isn't clipped by the hosting view's bounds
+            }
+        }
+        .preferredColorScheme(.dark)
+        .onReceive(clockTimer) { now = $0 }
+        .onReceive(faceTimer) { _ in frameIndex += 1 }
+    }
+
+    private var floatingContent: some View {
         VStack(spacing: 6) {
             Text(currentFrame)
                 .font(.system(.title2, design: .monospaced))
@@ -19,9 +71,14 @@ struct OvercastView: View {
                 .contentTransition(.identity)
                 .animation(nil, value: frameIndex)
 
-            Text(timeString)
-                .font(.system(size: 20, weight: .semibold, design: .rounded))
-                .monospacedDigit()
+            (
+                Text(numericTimeString)
+                    .font(.custom("Antonio", size: 20))
+                    .fontWeight(.bold)
+                + Text(" " + amPmString)
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+            )
+            .monospacedDigit()
 
             HStack(spacing: 4) {
                 Text(weatherService.currentDescriptor.symbol)
@@ -35,32 +92,45 @@ struct OvercastView: View {
                 .italic()
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
-                .frame(width: 180)
+                .frame(width: 125)
 
             if weatherService.needsLocationPermission {
                 Button(action: weatherService.openLocationSettings) {
                     Text("Enable Location for accurate weather →")
                         .font(.caption2.weight(.medium))
+                        .multilineTextAlignment(.center)
+                        .frame(width: 115)
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.orange)
             }
         }
-        .padding(18)
-        .background {
-            let shape = RoundedRectangle(cornerRadius: 34, style: .continuous)
-            shape
-                .fill(.ultraThinMaterial)
-                .overlay(shape.fill(Color.black.opacity(0.45)))
-                .overlay(shape.strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
+    }
+
+    /// Narrow strip shown while docked to a screen edge: weather symbol,
+    /// hour and minute each inline (not split into individual stacked
+    /// digits), and the AM/PM suffix at the bottom.
+    private var dockedContent: some View {
+        VStack(spacing: 10) {
+            Text(weatherService.currentDescriptor.symbol)
+                .font(.title3)
+
+            VStack(spacing: 8) {
+                Text(hourString)
+                    .font(.custom("Antonio", size: 15))
+                    .fontWeight(.bold)
+                    .monospacedDigit()
+
+                Text(minuteString)
+                    .font(.custom("Antonio", size: 15))
+                    .fontWeight(.bold)
+                    .monospacedDigit()
+            }
+
+            Text(amPmString)
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(.secondary)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
-        .compositingGroup()
-        .shadow(color: .black.opacity(0.35), radius: 20, x: 0, y: 8)
-        .preferredColorScheme(.dark)
-        .fixedSize()
-        .onReceive(clockTimer) { now = $0 }
-        .onReceive(faceTimer) { _ in frameIndex += 1 }
     }
 
     private var currentFrame: String {
@@ -69,9 +139,27 @@ struct OvercastView: View {
         return frames[frameIndex % frames.count]
     }
 
-    private var timeString: String {
+    private var numericTimeString: String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a"
+        formatter.dateFormat = "h:mm"
+        return formatter.string(from: now)
+    }
+
+    private var hourString: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h"
+        return formatter.string(from: now)
+    }
+
+    private var minuteString: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "mm"
+        return formatter.string(from: now)
+    }
+
+    private var amPmString: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "a"
         return formatter.string(from: now)
     }
 }

@@ -28,8 +28,8 @@ struct Mood {
     ], message: "Deep focus mode. I'll be quiet.")
 
     static let celebrating = Mood(frames: [
-        "\\(^o^)/",
-        "\\(^▽^)/"
+        "(^o^)",
+        "(^▽^)"
     ], message: "Nice, that shipped!")
 }
 

@@ -8,9 +8,11 @@ struct SettingsView: View {
     @State private var saved = false
 
     let onResetPosition: () -> Void
+    let onOpacityChange: (Double) -> Void
 
-    init(onResetPosition: @escaping () -> Void) {
+    init(onResetPosition: @escaping () -> Void, onOpacityChange: @escaping (Double) -> Void) {
         self.onResetPosition = onResetPosition
+        self.onOpacityChange = onOpacityChange
         let config = AppConfig.load()
         _latitude = State(initialValue: config?.fallbackLatitude.map { String($0) } ?? "")
         _longitude = State(initialValue: config?.fallbackLongitude.map { String($0) } ?? "")
@@ -33,13 +35,17 @@ struct SettingsView: View {
                 Slider(value: $opacity, in: 0.2...1.0) {
                     Text("Opacity")
                 }
+                .onChange(of: opacity) { newValue in
+                    onOpacityChange(newValue)
+                    persistOpacity(newValue)
+                }
                 Button("Reset Position") {
                     onResetPosition()
                 }
             }
 
             if saved {
-                Text("Saved — restart Overcast to apply.")
+                Text("Saved — restart Overcast to apply location/refresh changes.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -51,6 +57,19 @@ struct SettingsView: View {
         }
         .padding(20)
         .frame(width: 320)
+    }
+
+    private func persistOpacity(_ value: Double) {
+        var config = AppConfig.load() ?? AppConfig(
+            fallbackLatitude: nil,
+            fallbackLongitude: nil,
+            refreshIntervalMinutes: nil,
+            opacity: nil,
+            panelX: nil,
+            panelY: nil
+        )
+        config.opacity = value
+        config.save()
     }
 
     private func save() {
