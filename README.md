@@ -39,6 +39,10 @@ chmod +x build-app.sh
 open Overcast.app
 ```
 
+Move `Overcast.app` into `/Applications` if you want it findable via Spotlight,
+Raycast, or Launchpad like a normal app — it's a regular Dock/Cmd-Tab app now,
+so search tools index it the same way they would anything else there.
+
 ## Configuration
 
 Create `~/.config/overcast/config.json` (copy from `config.example.json`):
