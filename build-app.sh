@@ -21,6 +21,18 @@ mkdir -p "$APP_DIR/Contents/Resources"
 cp "$BUILD_DIR/$APP_NAME" "$APP_DIR/Contents/MacOS/$APP_NAME"
 cp Info.plist "$APP_DIR/Contents/Info.plist"
 
+echo "Generating app icon..."
+# Built from Resources/AppIcon.png at build time (via sips/iconutil) rather
+# than committing a generated .icns — one source of truth for the design.
+ICONSET_DIR=$(mktemp -d)/AppIcon.iconset
+mkdir -p "$ICONSET_DIR"
+for size in 16 32 128 256 512; do
+  sips -z "$size" "$size" Resources/AppIcon.png --out "$ICONSET_DIR/icon_${size}x${size}.png" >/dev/null
+  double=$((size * 2))
+  sips -z "$double" "$double" Resources/AppIcon.png --out "$ICONSET_DIR/icon_${size}x${size}@2x.png" >/dev/null
+done
+iconutil -c icns "$ICONSET_DIR" -o "$APP_DIR/Contents/Resources/AppIcon.icns"
+
 echo "Signing app bundle..."
 # The binary carries a linker-applied ad-hoc signature scoped to the bare
 # Mach-O; once copied into a bundle that no longer matches, and Gatekeeper
