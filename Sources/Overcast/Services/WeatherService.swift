@@ -12,10 +12,14 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
     private var refreshTimer: Timer?
 
     // Fallback coordinates if location permission is denied / unavailable.
-    // Configurable via AppConfig (see Config/config.json).
+    // Configurable via AppConfig (see Config/config.json); if not configured,
+    // resolved once via IP geolocation on first use instead of staying
+    // hardcoded to San Francisco regardless of where the machine actually is.
     private var fallbackLatitude: Double = 37.7749
     private var fallbackLongitude: Double = -122.4194
     private var refreshIntervalMinutes: Double = 15
+    private var hasConfiguredFallback = false
+    private var didAttemptIPLookup = false
 
     override init() {
         super.init()
@@ -45,6 +49,7 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
         if let lat = config.fallbackLatitude, let lon = config.fallbackLongitude {
             fallbackLatitude = lat
             fallbackLongitude = lon
+            hasConfiguredFallback = true
         }
         if let minutes = config.refreshIntervalMinutes {
             refreshIntervalMinutes = Double(minutes)
@@ -88,7 +93,30 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
     }
 
     func fetchWeather() async {
+        if !hasConfiguredFallback && !didAttemptIPLookup {
+            didAttemptIPLookup = true
+            if let location = await fetchIPLocation() {
+                fallbackLatitude = location.lat
+                fallbackLongitude = location.lon
+            }
+        }
         await fetchWeather(lat: fallbackLatitude, lon: fallbackLongitude)
+    }
+
+    /// Resolves an approximate location from the network's public IP —
+    /// free, no API key. Only tried once per launch, and only when the user
+    /// hasn't set an explicit fallback in config.json; on failure the
+    /// hardcoded San Francisco default stands.
+    private func fetchIPLocation() async -> (lat: Double, lon: Double)? {
+        guard let url = URL(string: "https://ipwho.is/") else { return nil }
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            let decoded = try JSONDecoder().decode(IPLocationResponse.self, from: data)
+            return (decoded.latitude, decoded.longitude)
+        } catch {
+            print("IP geolocation failed: \(error)")
+            return nil
+        }
     }
 
     func fetchWeather(lat: Double, lon: Double) async {
@@ -121,4 +149,9 @@ private struct OpenMeteoResponse: Decodable {
         let is_day: Int
     }
     let current: Current
+}
+
+private struct IPLocationResponse: Decodable {
+    let latitude: Double
+    let longitude: Double
 }

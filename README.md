@@ -55,7 +55,10 @@ Create `~/.config/overcast/config.json` (copy from `config.example.json`):
 }
 ```
 
-Used when location permission isn't granted.
+Used when location permission isn't granted. If you skip this, Overcast
+resolves an approximate location from your network's public IP instead of
+defaulting to San Francisco — set these explicitly only if you want to
+override that.
 
 ## Triggering mood events
 
