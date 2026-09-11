@@ -39,4 +39,17 @@ echo "Signing app bundle..."
 # refuses to launch it from Finder. Re-sign the assembled bundle as a whole.
 codesign --force --deep --sign - "$APP_DIR"
 
-echo "Done. Run with: open $APP_DIR"
+echo "Syncing /Applications..."
+# Two bundles sharing the same CFBundleIdentifier (this dev build and an
+# /Applications copy) confuses LaunchServices about which one to launch when
+# opened by name/Spotlight/Dock/Raycast rather than a full path — it has no
+# reliable way to prefer the newer one since both report the same
+# CFBundleVersion. Keeping /Applications synced to every build sidesteps
+# that ambiguity entirely rather than letting the two drift apart.
+if [ -d "/Applications" ]; then
+  rm -rf "/Applications/${APP_DIR}"
+  cp -R "$APP_DIR" "/Applications/${APP_DIR}"
+  /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/Support/lsregister -f "/Applications/${APP_DIR}" >/dev/null 2>&1 || true
+fi
+
+echo "Done. Run with: open /Applications/$APP_DIR"
