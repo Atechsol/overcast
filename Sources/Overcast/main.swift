@@ -102,9 +102,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// at the saved/default position.
     private static func restoredFrame(from config: AppConfig?) -> (origin: NSPoint, size: NSSize) {
         if let rawEdge = config?.dockedEdge, let edge = DockedEdge(rawValue: rawEdge) {
-            let size = fitted(dockedSize, to: NSScreen.main)
-            let y = config?.panelY ?? Double(defaultPanelOrigin.y)
-            let x = edge == .left ? outerLeftX() : outerRightX() - Double(size.width)
+            let targetX = edge == .left ? outerLeftX() : outerRightX()
+            // The docked edge can belong to any screen in a multi-monitor
+            // arrangement, not necessarily NSScreen.main (whichever one macOS
+            // considers primary) — clamping y against the wrong screen's
+            // bounds still leaves the panel off the screen it's actually
+            // meant to dock to. Find the screen that owns this edge.
+            let screen = NSScreen.screens.first {
+                edge == .left ? $0.frame.minX == targetX : $0.frame.maxX == targetX
+            } ?? NSScreen.main
+
+            let size = fitted(dockedSize, to: screen)
+            let x = edge == .left ? targetX : targetX - Double(size.width)
+            // x is re-derived from the current screen arrangement above, but y
+            // was trusted as-is from a possibly stale save — if the monitor
+            // layout changed since (a display added/removed/repositioned), a
+            // saved y outside that screen's visible bounds left the panel
+            // running with no visible, reachable position at all.
+            let savedY = config?.panelY ?? Double(defaultPanelOrigin.y)
+            let y: Double
+            if let visible = screen?.visibleFrame {
+                y = min(max(savedY, Double(visible.minY)), Double(visible.maxY) - Double(size.height))
+            } else {
+                y = savedY
+            }
             return (NSPoint(x: x, y: y), size)
         }
         let size = fitted(floatingSize, to: NSScreen.main)
