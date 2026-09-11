@@ -199,11 +199,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let screen = panel.screen ?? NSScreen.main
         let size = Self.fitted(Self.floatingSize, to: screen)
         let visible = screen?.visibleFrame ?? panel.frame
+
+        // Anchor near wherever it was docked, not a fixed corner — but clamp
+        // both axes to the current screen: the docked strip is narrower than
+        // the floating card, so keeping x unclamped could push the far edge
+        // straight past the screen boundary once it grows.
+        let x = min(max(panel.frame.minX, visible.minX), visible.maxX - Double(size.width))
         let y = min(max(panel.frame.midY - Double(size.height) / 2, visible.minY),
                     visible.maxY - Double(size.height))
 
         dockState.edge = nil
-        panel.setFrame(NSRect(x: panel.frame.minX, y: y, width: size.width, height: size.height),
+        panel.setFrame(NSRect(x: x, y: y, width: size.width, height: size.height),
                         display: true, animate: true)
         refreshContextMenu()
         savePanelPosition()
