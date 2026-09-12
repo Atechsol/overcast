@@ -4,3 +4,4 @@ Overcast.app/
 *.xcodeproj
 DerivedData/
 .DS_Store
+docs/plans/

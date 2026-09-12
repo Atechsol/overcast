@@ -13,11 +13,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var weatherService = WeatherService()
     var moodManager = MoodManager()
     var dockState = PanelDockState()
+    var trayManager = TrayManager()
     var eventListener: EventListener?
 
     static let defaultPanelOrigin = NSPoint(x: 100, y: 100)
     static let floatingSize = NSSize(width: 205, height: 205)
+    // Content grows by OvercastView.expandedContentHeight (270-145=125) when
+    // the inline tray section is showing; window grows by the same amount.
+    static let expandedFloatingSize = NSSize(width: 205, height: 205 + 125)
     static let dockedSize = NSSize(width: 88, height: 224)
+    // Same width as dockedSize — only height grows (see setTrayExpanded).
+    static let expandedDockedSize = NSSize(width: 88, height: 350)
     static let dockThreshold: CGFloat = 24
     static let undockThreshold: CGFloat = 40
 
@@ -25,10 +31,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.regular)
         NSApp.mainMenu = makeMainMenu()
 
-        let contentView = OvercastView()
+        let contentView = OvercastView(
+            onUndockRequested: { [weak self] in self?.undock() },
+            onTrayExpandedChanged: { [weak self] expanded in self?.setTrayExpanded(expanded) }
+        )
             .environmentObject(weatherService)
             .environmentObject(moodManager)
             .environmentObject(dockState)
+            .environmentObject(trayManager)
 
         let hostingView = NSHostingView(rootView: contentView)
         hostingView.sizingOptions = [.preferredContentSize]
@@ -157,6 +167,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func dock(to edge: DockedEdge) {
+        // Drag-triggered, so the tray toggle (and its resize) never got a
+        // chance to run — force-collapse to keep the window size and
+        // trayManager.isExpanded from disagreeing with each other.
+        trayManager.isExpanded = false
         let screen = panel.screen ?? NSScreen.main
         let size = Self.fitted(Self.dockedSize, to: screen)
         let leftX = Self.outerLeftX()
@@ -175,6 +189,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func undock() {
+        // Same reasoning as dock(to:) above.
+        trayManager.isExpanded = false
         let screen = panel.screen ?? NSScreen.main
         let size = Self.fitted(Self.floatingSize, to: screen)
         let visible = screen?.visibleFrame ?? panel.frame
@@ -186,6 +202,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                         display: true, animate: true)
         refreshContextMenu()
         savePanelPosition()
+    }
+
+    /// Grows/shrinks the panel to show or hide the inline tray section,
+    /// keeping the top edge anchored so it extends downward rather than
+    /// growing from the center or pushing the top out of place. Width is
+    /// identical between base/expanded in both modes, so x never moves.
+    private func setTrayExpanded(_ expanded: Bool) {
+        let screen = panel.screen ?? NSScreen.main
+        let isDocked = dockState.edge != nil
+        let baseSize = isDocked ? Self.dockedSize : Self.floatingSize
+        let expandedSize = isDocked ? Self.expandedDockedSize : Self.expandedFloatingSize
+        let size = Self.fitted(expanded ? expandedSize : baseSize, to: screen)
+        let visible = screen?.visibleFrame ?? panel.frame
+        let topY = panel.frame.maxY
+        let y = min(max(topY - size.height, visible.minY), visible.maxY - size.height)
+        panel.setFrame(NSRect(x: panel.frame.minX, y: y, width: size.width, height: size.height),
+                        display: true, animate: true)
     }
 
     private func refreshContextMenu() {
