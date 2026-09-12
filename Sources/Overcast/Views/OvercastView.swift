@@ -9,11 +9,8 @@ struct OvercastView: View {
     @EnvironmentObject var trayManager: TrayManager
     @State private var now: Date = Date()
     @State private var frameIndex: Int = 0
-    @State private var isTrayTabTargeted = false
     @State private var isCardTargeted = false
-    @State private var isTrayExpanded = false
 
-    let onOpenTray: (() -> Void)?
     let onUndockRequested: (() -> Void)?
     let onTrayExpandedChanged: ((Bool) -> Void)?
 
@@ -22,36 +19,31 @@ struct OvercastView: View {
 
     /// Extra room the card needs when the inline tray section (toggle +
     /// 2-row scrollable list) is showing. Kept in sync with
-    /// AppDelegate.expandedFloatingSize, which resizes the actual window.
+    /// AppDelegate.expandedFloatingSize/expandedDockedSize, which resize
+    /// the actual window.
     static let expandedContentHeight: CGFloat = 270
+    static let expandedDockedContentHeight: CGFloat = 290
 
     var body: some View {
         Group {
             if let edge = dockState.edge {
                 dockedContent
                     .padding(10)
-                    .frame(width: 58, height: 164)
+                    .frame(width: 58, height: trayManager.isExpanded ? Self.expandedDockedContentHeight : 164)
                     .background {
                         DockedShape(edge: edge)
                             .fill(Color.black.opacity(0.72))
                             .overlay(DockedShape(edge: edge).stroke(Color.white.opacity(0.12), lineWidth: 1))
                     }
                     .clipShape(DockedShape(edge: edge))
-                    // Inward side (opposite the flush screen edge, where the
-                    // rounded corners are) — same hidden-until-nonempty rule
-                    // as floating mode. Attached after clipShape for the same
-                    // reason as the floating tab: clipping would otherwise cut
-                    // off the part meant to protrude past the strip's edge.
-                    .overlay(alignment: edge == .right ? .leading : .trailing) {
-                        if !trayManager.items.isEmpty {
-                            trayTab.offset(x: edge == .right ? -14 : 14)
-                        }
-                    }
                     .overlay {
                         if isCardTargeted {
-                            DockedShape(edge: edge).stroke(Color.orange.opacity(0.8), lineWidth: 2)
+                            DockedShape(edge: edge)
+                                .fill(Color.white.opacity(0.06))
+                                .overlay(DockedShape(edge: edge).stroke(Color.white.opacity(0.7), lineWidth: 1.5))
                         }
                     }
+                    .animation(.easeInOut(duration: 0.2), value: isCardTargeted)
                     .onDrop(of: [.fileURL], isTargeted: $isCardTargeted) { providers in
                         handleDrop(providers)
                     }
@@ -72,7 +64,7 @@ struct OvercastView: View {
             } else {
                 floatingContent
                     .padding(12)
-                    .frame(width: 145, height: isTrayExpanded ? Self.expandedContentHeight : 145)
+                    .frame(width: 145, height: trayManager.isExpanded ? Self.expandedContentHeight : 145)
                     .background {
                         let shape = RoundedRectangle(cornerRadius: 34, style: .continuous)
                         // A plain fill, not .ultraThinMaterial: that's backed by a
@@ -85,11 +77,14 @@ struct OvercastView: View {
                     }
                     .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
                     .overlay {
+                        let shape = RoundedRectangle(cornerRadius: 34, style: .continuous)
                         if isCardTargeted {
-                            RoundedRectangle(cornerRadius: 34, style: .continuous)
-                                .strokeBorder(Color.orange.opacity(0.8), lineWidth: 2)
+                            shape
+                                .fill(Color.white.opacity(0.06))
+                                .overlay(shape.strokeBorder(Color.white.opacity(0.7), lineWidth: 1.5))
                         }
                     }
+                    .animation(.easeInOut(duration: 0.2), value: isCardTargeted)
                     // Whole card accepts drops — there's no separate tab to
                     // drop onto anymore, the tray lives inline inside the card.
                     .onDrop(of: [.fileURL], isTargeted: $isCardTargeted) { providers in
@@ -107,8 +102,8 @@ struct OvercastView: View {
         // !isEmpty), but nothing else would tell the actual panel to shrink
         // back down — it stayed at its expanded size showing empty space.
         .onChange(of: trayManager.items.count) { count in
-            if count == 0 && isTrayExpanded {
-                isTrayExpanded = false
+            if count == 0 && trayManager.isExpanded {
+                withAnimation(.easeInOut(duration: 0.25)) { trayManager.isExpanded = false }
                 onTrayExpandedChanged?(false)
             }
         }
@@ -146,35 +141,18 @@ struct OvercastView: View {
                 .foregroundStyle(.secondary)
                 .frame(width: 125)
 
-            if !trayManager.items.isEmpty {
-                Button(action: {
-                    isTrayExpanded.toggle()
-                    onTrayExpandedChanged?(isTrayExpanded)
-                }) {
-                    Image(systemName: isTrayExpanded ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.secondary)
-                        .overlay(alignment: .trailing) {
-                            Text("\(trayManager.items.count)")
-                                .font(.system(size: 8, weight: .bold))
-                                .padding(3)
-                                .background(Circle().fill(.orange))
-                                .offset(x: 14)
-                        }
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(isTrayExpanded ? "Collapse tray" : "Expand tray, \(trayManager.items.count) item\(trayManager.items.count == 1 ? "" : "s")")
+            trayToggle
 
-                if isTrayExpanded {
-                    ScrollView {
-                        VStack(spacing: 4) {
-                            ForEach(trayManager.items) { item in
-                                InlineTrayRow(item: item, onRemove: { trayManager.remove(item) })
-                            }
+            if trayManager.isExpanded {
+                ScrollView {
+                    VStack(spacing: 4) {
+                        ForEach(trayManager.items) { item in
+                            InlineTrayRow(item: item, onRemove: { trayManager.remove(item) })
                         }
                     }
-                    .frame(width: 121, height: 88) // ~2 rows visible, rest scrolls
                 }
+                .frame(width: 121, height: 88) // ~2 rows visible, rest scrolls
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
             if weatherService.needsLocationPermission {
@@ -192,7 +170,10 @@ struct OvercastView: View {
 
     /// Narrow strip shown while docked to a screen edge: weather symbol,
     /// hour and minute each inline (not split into individual stacked
-    /// digits), and the AM/PM suffix at the bottom.
+    /// digits), and the AM/PM suffix at the bottom. No dedicated undock
+    /// button — drag away from the edge or right-click → Undock instead;
+    /// the only button this strip shows is the tray toggle, and only once
+    /// the tray actually holds something.
     private var dockedContent: some View {
         VStack(spacing: 10) {
             Text(weatherService.currentDescriptor.symbol)
@@ -214,48 +195,52 @@ struct OvercastView: View {
                 .font(.system(size: 11, weight: .semibold, design: .rounded))
                 .foregroundStyle(.secondary)
 
-            Button(action: { onUndockRequested?() }) {
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 20, height: 16)
+            trayToggle
+
+            if trayManager.isExpanded {
+                ScrollView {
+                    VStack(spacing: 4) {
+                        ForEach(trayManager.items) { item in
+                            DockedTrayRow(item: item, onRemove: { trayManager.remove(item) })
+                        }
+                    }
+                }
+                .frame(width: 38, height: 84) // ~2 rows visible, rest scrolls
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Undock")
-            .accessibilityHint("Returns the widget to floating position")
         }
     }
 
-    /// Edge-attached tab overlaid on the floating card's trailing edge — must
-    /// be attached to floatingContent itself, before .clipShape is applied in
-    /// body, otherwise the part that extends past the card's own bounds
-    /// (by design, via .offset) gets cut off.
-    private var trayTab: some View {
-        Button(action: { onOpenTray?() }) {
-            Image(systemName: "chevron.right")
-                .font(.system(size: 10, weight: .bold))
-                .frame(width: 18, height: 28)
-                .background(Color.black.opacity(0.72), in: RoundedRectangle(cornerRadius: 6))
-                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.white.opacity(0.12), lineWidth: 1))
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(trayManager.items.isEmpty ? .secondary : .primary)
-        .scaleEffect(isTrayTabTargeted ? 1.15 : 1.0)
-        .overlay(alignment: .topTrailing) {
-            if trayManager.items.count > 0 {
-                Text("\(trayManager.items.count)")
-                    .font(.system(size: 8, weight: .bold))
-                    .padding(3)
-                    .background(Circle().fill(.orange))
-                    .offset(x: 4, y: -4)
+    /// Shared toggle for both layouts — hidden until the tray holds
+    /// something, shows a count badge, expands/collapses the same panel
+    /// (grown downward by AppDelegate, not a separate popup window).
+    @ViewBuilder
+    private var trayToggle: some View {
+        if !trayManager.items.isEmpty {
+            Button(action: {
+                let expanded = !trayManager.isExpanded
+                withAnimation(.easeInOut(duration: 0.25)) { trayManager.isExpanded = expanded }
+                onTrayExpandedChanged?(expanded)
+            }) {
+                Image(systemName: trayManager.isExpanded ? "chevron.up" : "chevron.down")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(.secondary)
+                    .overlay(alignment: .trailing) {
+                        Text("\(trayManager.items.count)")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(3)
+                            .background {
+                                Circle()
+                                    .fill(Color.white.opacity(0.18))
+                                    .overlay(Circle().strokeBorder(Color.white.opacity(0.6), lineWidth: 0.75))
+                            }
+                            .offset(x: 14)
+                    }
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel(trayManager.isExpanded ? "Collapse tray" : "Expand tray, \(trayManager.items.count) item\(trayManager.items.count == 1 ? "" : "s")")
         }
-        .onDrop(of: [.fileURL], isTargeted: $isTrayTabTargeted) { providers in
-            handleDrop(providers)
-        }
-        .accessibilityLabel(trayManager.items.isEmpty ? "Tray, empty" : "Tray, \(trayManager.items.count) item\(trayManager.items.count == 1 ? "" : "s")")
-        .accessibilityHint("Opens the tray window. Drag files here to add them.")
-        .accessibilityAddTraits(.isButton)
     }
 
     private struct InlineTrayRow: View {
@@ -266,9 +251,14 @@ struct OvercastView: View {
             HStack(spacing: 4) {
                 Image(nsImage: NSWorkspace.shared.icon(forFile: item.url.path))
                     .resizable().frame(width: 16, height: 16)
-                Text(item.displayName)
-                    .font(.system(size: 9))
-                    .lineLimit(1)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(item.displayName)
+                        .font(.system(size: 9))
+                        .lineLimit(1)
+                    Text(sizeString)
+                        .font(.system(size: 7))
+                        .foregroundStyle(.secondary)
+                }
                 Spacer(minLength: 2)
                 Button(action: onRemove) {
                     Image(systemName: "xmark.circle.fill").font(.system(size: 9))
@@ -280,8 +270,48 @@ struct OvercastView: View {
             .contentShape(Rectangle())
             .onTapGesture(count: 2) { NSWorkspace.shared.open(item.url) }
             .accessibilityElement(children: .combine)
-            .accessibilityLabel(item.displayName)
+            .accessibilityLabel("\(item.displayName), \(sizeString)")
             .accessibilityHint("Double-tap to open.")
+        }
+
+        private var sizeString: String {
+            guard let bytes = item.byteSize else { return "—" }
+            return ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+        }
+    }
+
+    /// Compact vertical layout for the 38pt-wide docked strip — no room for
+    /// a filename next to an icon, so this shows icon + size only, stacked.
+    private struct DockedTrayRow: View {
+        let item: TrayItem
+        let onRemove: () -> Void
+
+        var body: some View {
+            VStack(spacing: 2) {
+                Image(nsImage: NSWorkspace.shared.icon(forFile: item.url.path))
+                    .resizable().frame(width: 18, height: 18)
+                Text(sizeString)
+                    .font(.system(size: 7, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+            .frame(width: 38, height: 40)
+            .overlay(alignment: .topTrailing) {
+                Button(action: onRemove) {
+                    Image(systemName: "xmark.circle.fill").font(.system(size: 7))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Remove \(item.displayName) from tray")
+            }
+            .contentShape(Rectangle())
+            .onTapGesture(count: 2) { NSWorkspace.shared.open(item.url) }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(item.displayName), \(sizeString)")
+            .accessibilityHint("Double-tap to open.")
+        }
+
+        private var sizeString: String {
+            guard let bytes = item.byteSize else { return "—" }
+            return ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
         }
     }
 

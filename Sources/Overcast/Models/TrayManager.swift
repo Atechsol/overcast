@@ -7,6 +7,12 @@ import Foundation
 @MainActor
 final class TrayManager: ObservableObject {
     @Published var items: [TrayItem] = []
+    // Single source of truth for expand/collapse, shared between the
+    // SwiftUI view (toggle button) and AppDelegate (drag-triggered
+    // dock/undock, which needs to force-collapse to keep the actual
+    // window size in sync — a local @State on the view alone can't be
+    // reached from there).
+    @Published var isExpanded = false
 
     func add(_ urls: [URL]) {
         let new = urls.compactMap(TrayItem.make(from:))

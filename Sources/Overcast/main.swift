@@ -10,7 +10,6 @@ import AppKit
 final class AppDelegate: NSObject, NSApplicationDelegate {
     var panel: FloatingPanel!
     var settingsWindow: NSWindow?
-    var trayWindow: NSWindow?
     var weatherService = WeatherService()
     var moodManager = MoodManager()
     var dockState = PanelDockState()
@@ -23,6 +22,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // the inline tray section is showing; window grows by the same amount.
     static let expandedFloatingSize = NSSize(width: 205, height: 205 + 125)
     static let dockedSize = NSSize(width: 88, height: 224)
+    // Same width as dockedSize — only height grows (see setTrayExpanded).
+    static let expandedDockedSize = NSSize(width: 88, height: 350)
     static let dockThreshold: CGFloat = 24
     static let undockThreshold: CGFloat = 40
 
@@ -31,7 +32,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.mainMenu = makeMainMenu()
 
         let contentView = OvercastView(
-            onOpenTray: { [weak self] in self?.openTray() },
             onUndockRequested: { [weak self] in self?.undock() },
             onTrayExpandedChanged: { [weak self] expanded in self?.setTrayExpanded(expanded) }
         )
@@ -167,6 +167,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func dock(to edge: DockedEdge) {
+        // Drag-triggered, so the tray toggle (and its resize) never got a
+        // chance to run — force-collapse to keep the window size and
+        // trayManager.isExpanded from disagreeing with each other.
+        trayManager.isExpanded = false
         let screen = panel.screen ?? NSScreen.main
         let size = Self.fitted(Self.dockedSize, to: screen)
         let leftX = Self.outerLeftX()
@@ -185,6 +189,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func undock() {
+        // Same reasoning as dock(to:) above.
+        trayManager.isExpanded = false
         let screen = panel.screen ?? NSScreen.main
         let size = Self.fitted(Self.floatingSize, to: screen)
         let visible = screen?.visibleFrame ?? panel.frame
@@ -200,10 +206,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Grows/shrinks the panel to show or hide the inline tray section,
     /// keeping the top edge anchored so it extends downward rather than
-    /// growing from the center or pushing the top out of place.
+    /// growing from the center or pushing the top out of place. Width is
+    /// identical between base/expanded in both modes, so x never moves.
     private func setTrayExpanded(_ expanded: Bool) {
         let screen = panel.screen ?? NSScreen.main
-        let size = Self.fitted(expanded ? Self.expandedFloatingSize : Self.floatingSize, to: screen)
+        let isDocked = dockState.edge != nil
+        let baseSize = isDocked ? Self.dockedSize : Self.floatingSize
+        let expandedSize = isDocked ? Self.expandedDockedSize : Self.expandedFloatingSize
+        let size = Self.fitted(expanded ? expandedSize : baseSize, to: screen)
         let visible = screen?.visibleFrame ?? panel.frame
         let topY = panel.frame.maxY
         let y = min(max(topY - size.height, visible.minY), visible.maxY - size.height)
@@ -302,29 +312,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             settingsWindow = window
         }
         settingsWindow?.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
-    }
-
-    func openTray() {
-        if trayWindow == nil {
-            let trayView = TrayView(trayManager: trayManager)
-            let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 280, height: 360),
-                styleMask: [.titled, .closable],
-                backing: .buffered,
-                defer: false
-            )
-            window.title = "Tray"
-            window.contentView = NSHostingView(rootView: trayView)
-            window.isReleasedWhenClosed = false
-            trayWindow = window
-        }
-        if let panelFrame = panel?.frame, let screen = panel.screen ?? NSScreen.main {
-            let x = min(panelFrame.maxX + 12, screen.visibleFrame.maxX - 280)
-            let y = panelFrame.maxY - 360
-            trayWindow?.setFrameOrigin(NSPoint(x: x, y: y))
-        }
-        trayWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
 
