@@ -103,6 +103,15 @@ struct OvercastView: View {
         .preferredColorScheme(.dark)
         .onReceive(clockTimer) { now = $0 }
         .onReceive(faceTimer) { _ in frameIndex += 1 }
+        // Removing the last item hides the chevron+list (both gated on
+        // !isEmpty), but nothing else would tell the actual panel to shrink
+        // back down — it stayed at its expanded size showing empty space.
+        .onChange(of: trayManager.items.count) { count in
+            if count == 0 && isTrayExpanded {
+                isTrayExpanded = false
+                onTrayExpandedChanged?(false)
+            }
+        }
     }
 
     private var floatingContent: some View {
