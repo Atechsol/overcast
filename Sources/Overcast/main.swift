@@ -10,9 +10,11 @@ import AppKit
 final class AppDelegate: NSObject, NSApplicationDelegate {
     var panel: FloatingPanel!
     var settingsWindow: NSWindow?
+    var trayWindow: NSWindow?
     var weatherService = WeatherService()
     var moodManager = MoodManager()
     var dockState = PanelDockState()
+    var trayManager = TrayManager()
     var eventListener: EventListener?
 
     static let defaultPanelOrigin = NSPoint(x: 100, y: 100)
@@ -25,10 +27,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.regular)
         NSApp.mainMenu = makeMainMenu()
 
-        let contentView = OvercastView()
+        let contentView = OvercastView(
+            onOpenTray: { [weak self] in self?.openTray() },
+            onUndockRequested: { [weak self] in self?.undock() }
+        )
             .environmentObject(weatherService)
             .environmentObject(moodManager)
             .environmentObject(dockState)
+            .environmentObject(trayManager)
 
         let hostingView = NSHostingView(rootView: contentView)
         hostingView.sizingOptions = [.preferredContentSize]
@@ -279,6 +285,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             settingsWindow = window
         }
         settingsWindow?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func openTray() {
+        if trayWindow == nil {
+            let trayView = TrayView(trayManager: trayManager)
+            let window = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 280, height: 360),
+                styleMask: [.titled, .closable],
+                backing: .buffered,
+                defer: false
+            )
+            window.title = "Tray"
+            window.contentView = NSHostingView(rootView: trayView)
+            window.isReleasedWhenClosed = false
+            trayWindow = window
+        }
+        if let panelFrame = panel?.frame, let screen = panel.screen ?? NSScreen.main {
+            let x = min(panelFrame.maxX + 12, screen.visibleFrame.maxX - 280)
+            let y = panelFrame.maxY - 360
+            trayWindow?.setFrameOrigin(NSPoint(x: x, y: y))
+        }
+        trayWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
 
