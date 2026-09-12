@@ -19,6 +19,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     static let defaultPanelOrigin = NSPoint(x: 100, y: 100)
     static let floatingSize = NSSize(width: 205, height: 205)
+    // Content grows by OvercastView.expandedContentHeight (270-145=125) when
+    // the inline tray section is showing; window grows by the same amount.
+    static let expandedFloatingSize = NSSize(width: 205, height: 205 + 125)
     static let dockedSize = NSSize(width: 88, height: 224)
     static let dockThreshold: CGFloat = 24
     static let undockThreshold: CGFloat = 40
@@ -29,7 +32,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let contentView = OvercastView(
             onOpenTray: { [weak self] in self?.openTray() },
-            onUndockRequested: { [weak self] in self?.undock() }
+            onUndockRequested: { [weak self] in self?.undock() },
+            onTrayExpandedChanged: { [weak self] expanded in self?.setTrayExpanded(expanded) }
         )
             .environmentObject(weatherService)
             .environmentObject(moodManager)
@@ -192,6 +196,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                         display: true, animate: true)
         refreshContextMenu()
         savePanelPosition()
+    }
+
+    /// Grows/shrinks the panel to show or hide the inline tray section,
+    /// keeping the top edge anchored so it extends downward rather than
+    /// growing from the center or pushing the top out of place.
+    private func setTrayExpanded(_ expanded: Bool) {
+        let screen = panel.screen ?? NSScreen.main
+        let size = Self.fitted(expanded ? Self.expandedFloatingSize : Self.floatingSize, to: screen)
+        let visible = screen?.visibleFrame ?? panel.frame
+        let topY = panel.frame.maxY
+        let y = min(max(topY - size.height, visible.minY), visible.maxY - size.height)
+        panel.setFrame(NSRect(x: panel.frame.minX, y: y, width: size.width, height: size.height),
+                        display: true, animate: true)
     }
 
     private func refreshContextMenu() {
