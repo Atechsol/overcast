@@ -222,21 +222,23 @@ struct OvercastView: View {
                 withAnimation(.easeInOut(duration: 0.25)) { trayManager.isExpanded = expanded }
                 onTrayExpandedChanged?(expanded)
             }) {
-                Image(systemName: trayManager.isExpanded ? "chevron.up" : "chevron.down")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(.secondary)
-                    .overlay(alignment: .trailing) {
-                        Text("\(trayManager.items.count)")
-                            .font(.system(size: 8, weight: .bold))
-                            .foregroundStyle(.white)
-                            .padding(3)
-                            .background {
-                                Circle()
-                                    .fill(Color.white.opacity(0.18))
-                                    .overlay(Circle().strokeBorder(Color.white.opacity(0.6), lineWidth: 0.75))
-                            }
-                            .offset(x: 14)
-                    }
+                HStack(spacing: 5) {
+                    Text("\(trayManager.items.count)")
+                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .monospacedDigit()
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background {
+                            Capsule()
+                                .fill(Color.white.opacity(0.16))
+                                .overlay(Capsule().strokeBorder(Color.white.opacity(0.55), lineWidth: 0.75))
+                        }
+
+                    Image(systemName: trayManager.isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(.secondary)
+                }
             }
             .buttonStyle(.plain)
             .accessibilityLabel(trayManager.isExpanded ? "Collapse tray" : "Expand tray, \(trayManager.items.count) item\(trayManager.items.count == 1 ? "" : "s")")
