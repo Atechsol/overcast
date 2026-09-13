@@ -31,6 +31,17 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
         locationManager.requestWhenInUseAuthorization()
         locationManager.requestLocation()
 
+        // Don't wait on the location-permission flow to show anything — a
+        // pending/never-resolved .notDetermined status (the prompt can be
+        // dismissed without a decision, or simply never surface) fell into
+        // the default: break case below with no fallback fetch at all,
+        // leaving the widget stuck at .unknown indefinitely. Fetch with the
+        // fallback coordinates immediately; didUpdateLocations overwrites
+        // this with the real result once/if permission is actually granted.
+        Task { @MainActor [weak self] in
+            await self?.fetchWeather()
+        }
+
         // Configurable via AppConfig (see ~/.config/overcast/config.json), defaults to 15 min.
         refreshTimer = Timer.scheduledTimer(withTimeInterval: refreshIntervalMinutes * 60, repeats: true) { [weak self] _ in
             // Unwrap outside the Task, not inside it — the CI toolchain's

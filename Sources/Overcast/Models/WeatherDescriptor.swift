@@ -14,9 +14,11 @@ struct WeatherDescriptor {
             return isDay ? WeatherDescriptor(label: "Sunny", symbol: "☀️")
                           : WeatherDescriptor(label: "Clear Night", symbol: "🌙")
         case 1:
-            return WeatherDescriptor(label: "Mild Sun", symbol: "🌤️")
+            return isDay ? WeatherDescriptor(label: "Mild Sun", symbol: "🌤️")
+                         : WeatherDescriptor(label: "Mostly Clear", symbol: "🌙")
         case 2:
-            return WeatherDescriptor(label: "Partly Cloudy", symbol: "⛅")
+            return isDay ? WeatherDescriptor(label: "Partly Cloudy", symbol: "⛅")
+                         : WeatherDescriptor(label: "Partly Cloudy", symbol: "☁️")
         case 3:
             return WeatherDescriptor(label: "Overcast", symbol: "☁️")
         case 45, 48:
