@@ -86,7 +86,7 @@ fi
 ## Installing via Homebrew (once released)
 
 ```bash
-brew tap Aleem/overcast
+brew tap Atechsol/overcast
 brew install --cask overcast
 ```
 
